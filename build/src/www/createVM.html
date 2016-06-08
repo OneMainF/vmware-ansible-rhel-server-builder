@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<! --
+
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+-->
+
+<html>
+    <head>
+        <title>Server Builder</title>
+        <script src="jquery-1.11.3.min.js"></script>
+        <script>
+
+		$(document).ready(function() {
+			$("#create").click(function() {
+				$("#create").prop("disabled",true);
+				$("#create").attr('value', 'Creating VM');
+
+				var formData = $("#createvm").serializeArray();
+
+				$.ajax({
+					url: "ws/createvm.php",
+					type: "POST",
+					data: formData,
+				success: function(data) {
+					var json = $.parseJSON(data);
+					alert(json.message);
+					$("#create").prop("disabled",false);
+					$("#create").attr('value', 'Create VM');
+				},
+				error: function (data) {
+					alert("Error");
+					$("#create").prop("disabled",false);
+					$("#create").attr('value', 'Create VM');
+				}});
+			});
+		});
+
+        </script>
+    </head>
+    <body>
+    <form id="createvm" name="createvm" action="">
+            <table>
+                <tr>
+                    <td>VM Name:</td>
+                    <td><input name="host" type="text" value="" /></td>
+                </tr>
+                <tr>
+                    <td>Status:</td>
+                    <td>
+                        <select name="status">
+                            <option value="">-- Status --</option>
+                            <option value="production">Production</option>
+                            <option value="qa">QA</option>
+                            <option value="test">Test</option>
+                            <option value="development">Development</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td>Select OS:</td>
+                    <td>
+                        <select name="osversion" id="osversionform">
+                            <option value="">-- OS Version --</option>
+                            <option value="rhel6">Red Hat 6</option>
+                            <option value="rhel7">Red Hat 7</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td>IP Address:</td>
+                    <td><input name="ipaddress" type="text" value="" /></td>
+                </tr>
+                <tr>
+                    <td>Cluster:</td>
+                    <td>
+                        <select name="cluster">
+                            <option value="">-- Cluster --</option>
+                            <option value="CLUSTER1">CLUSTER1</option>
+                            <option value="CLUSTER2">CLUSTER2</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr id="CPURow">
+                    <td>CPUs:</td>
+                    <td>
+                        <select name="cpu">
+                            <option value="">-- # of CPUs --</option>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="4">4</option>
+                            <option value="8">8</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr id="RAMRow">
+                    <td>RAM:</td>
+                    <td>
+                        <select name="ram">
+                            <option value="">-- RAM --</option>
+                            <option value="2">2 GB</option>
+                            <option value="4">4 GB</option>
+                            <option value="8">8 GB</option>
+                            <option value="16">16 GB</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr id="driveSizeRow">
+                    <td>Drive Size: (GB)</td>
+                    <td><input name="hdsize" type="text" value="" /></td>
+                </tr>
+                <tr>
+                    <td>Description:</td>
+                    <td><textarea rows="4" cols="50" name="description"></textarea></td>
+                </tr>
+                <tr>
+                    <td>Ansible Role:</td>
+                    <td><input type="text" name="role" value="" /></td>
+                </tr>
+                <tr colspan="2">
+                    <td><input id="create" type="button" value="Create VM" /></td>
+                </tr>
+            </table>
+        </form>
+    </body>
+</html>

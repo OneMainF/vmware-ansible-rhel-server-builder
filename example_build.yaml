@@ -1,0 +1,62 @@
+- hosts: 127.0.0.1
+  connection: local
+  user: root
+  sudo: false
+  gather_facts: false
+  serial: 1
+
+  vars:
+    username: "serviceAccount"
+    password: "P4ssw0rd"
+
+  tasks:
+
+  ## Make sure VM does not already exist
+  - name: Find VM
+    shell: scripts/findVM.py RHEL6VM {{ username }} {{ password }}
+    register: findVM
+    changed_when: "findVM.rc == 1"
+    failed_when: "findVM.rc == 0"
+
+  ## Create VM
+  - vsphere_guest:
+     vcenter_hostname: vcenter.example.com
+     username: "{{ username }}"
+     password: "{{ password }}"
+     guest:  
+     state: powered_off
+     vm_disk:
+       disk1:
+         size_gb: 60
+         type: thin
+         datastore: BIG_DATASTORE
+     vm_nic:
+       nic1:
+        type: vmxnet3
+        network: "ServerBuild_10.10.10.x"
+        network_type: dvs
+     vm_hardware:
+       memory_mb: 2048
+       num_cpus: 1
+       scsi: paravirtual
+       osid: rhel6_64Guest
+       vm_cdrom:
+         type: "iso"
+         iso_path: "CDIMAGES/rhel-server-6_kickstart-x86_64-dvd.iso"
+     vm_extra_config:
+       folder: "Builds"
+       notes: "Red Hat Enterprise Linux 6"
+       vcpu.hotadd: yes
+       mem.hotadd:  yes
+     esxi:
+      datacenter: Data Center
+      hostname: esx.example.com 
+
+  ## Update DB with the MAC address of the new VM
+  - name: Update MAC address
+    shell: scripts/updateMACAddress.py {{ hw_name }} {{ hw_eth0.macaddress }}
+
+  ## Power on the new VM
+  - name: Power On VM
+    shell: scripts/powerOnVM.py {{ hw_name }} {{ username }} {{ password }}
+

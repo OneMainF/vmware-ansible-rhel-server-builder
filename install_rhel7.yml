@@ -1,0 +1,308 @@
+##Licensed to the Apache Software Foundation (ASF) under one
+##or more contributor license agreements.  See the NOTICE file
+##distributed with this work for additional information
+##regarding copyright ownership.  The ASF licenses this file
+##to you under the Apache License, Version 2.0 (the
+##"License"); you may not use this file except in compliance
+##with the License.  You may obtain a copy of the License at
+##
+##    http://www.apache.org/licenses/LICENSE-2.0
+##
+##Unless required by applicable law or agreed to in writing, software
+##distributed under the License is distributed on an "AS IS" BASIS,
+##WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+##See the License for the specific language governing permissions and
+##limitations under the License.
+
+- hosts: 127.0.0.1
+  connection: local
+  user: root
+  become: true 
+  gather_facts: false
+  serial: 1
+
+  vars:
+    ## The host name of the server
+    CONTAINERHOSTNAME: ""
+
+    ## The name of 2 VMWare clusters in you VMware environment
+    ## This is where your VMs will live
+    CLUSTER1: ""
+    CLUSTER2: ""
+
+    ## A username and password that access your VMWare environment
+    ## This account must have the proper permissions to create VMs
+    VMORCHESTRATORUSER: ""
+    VMORPASSWD: ""
+
+    ## The name of your vCenter host
+    VCENTERHOST: ""
+
+    ## A datastore in VMWare that holds your RHEL ISOs
+    ISODATASTORENAME: ""
+
+    ## The name of your customized RHEL6 bootable DVD
+    RHEL6KICKSTARTISO: ""
+
+    ## The name of your customized RHEL7 bootable DVD
+    RHEL7KICKSTARTISO: ""
+
+    ## The name of a datastore in your VMWare environment where production VMs live
+    PRODDATASTORE: ""
+
+    ## The name of a datastore in your VMWare environment where test VMs live
+    TESTDATASTORE: ""
+
+    ## The name of your DHCP network in VMware, your VMs will need to DHCP during installation
+    SERVER_BUILD_DHCP_NETWORK: ""
+
+    # The name of a folder within VMware where your VMs will live
+    VMWARE_FOLDER: ""
+
+    ## The name of your VMware Data Center
+    VMWARE_DATA_CENTER_NAME: ""
+
+    ## The IPs of 2 DNS servers on your network and the domain name of your network
+    CONFIGDNS1: ""
+    CONFIGDNS2: ""
+    CONFIGDOMAIN: ""
+
+  tasks:
+
+  - name: Install packages 
+    yum: name={{ item }} state=present
+    with_items:
+      - python-pip 
+      - httpd 
+      - php 
+      - php-mysql
+      - mariadb-server
+      - mariadb-libs
+      - libsemanage-python
+      - MySQL-python
+    tags:
+      - yum
+
+  - name: Install pip modules
+    pip: name={{ item }} state=present
+    with_items:
+      - pip
+      - pysphere
+      - setuptools
+    tags:
+      - pip
+
+  - name: Create directory for hs
+    file: path=/opt/hs/bin state=directory
+    tags:
+      - scripts
+
+  - name: Copy scripts
+    copy: src={{ item }} dest=/opt/hs/bin owner=root group=root mode=775
+    with_fileglob:
+      - scripts/*
+    tags:
+      - scripts 
+
+  - name: Create directory for web services 
+    file: path={{ item }} state=directory owner=apache group=apache setype=_default
+    with_items:
+      - /var/www/html/builds
+      - /var/www/html/ws
+      - /var/www/html/kickstart
+    tags:
+      - web 
+
+  - name: Copy UI 
+    copy: src={{ item }} dest=/var/www/html/ owner=apache group=apache mode=644
+    with_fileglob:
+      - build/src/www/* 
+    tags:
+      - web 
+
+  - name: Copy KS 
+    copy: src={{ item }} dest=/var/www/html/kickstart/ owner=apache group=apache mode=644
+    with_fileglob:
+      - build/src/www/kickstart/* 
+    tags:
+      - web 
+
+  - name: Copy Web Services 
+    copy: src={{ item }} dest=/var/www/html/ws/ owner=apache group=apache mode=644
+    with_fileglob:
+      - build/src/www/ws/* 
+    tags:
+      - web 
+
+  - name: Verify httpd is running and enabled
+    service: name=httpd state=running enabled=yes
+    tags:
+      - apache 
+
+  - name: Open port 80 in the firewall
+    firewalld: port=80/tcp state=enabled immediate=true permanent=true
+    tags:
+      - apache
+
+  - name: Verify MySQL is running and enabled
+    service: name=mariadb state=running enabled=yes
+    tags:
+      - mysql 
+
+  - name: SELinux allow to connect to MySQL
+    seboolean: name=httpd_can_network_connect state=yes persistent=yes
+    tags:
+      - selinux
+
+  - name: SELinux allow to connect to MySQL
+    seboolean: name=httpd_can_network_connect_db state=yes persistent=yes
+    tags:
+      - selinux
+
+  - name: Create sysmgmt database
+    mysql_db: name=sysmgmt state=present
+    tags:
+      - initdb
+
+  - name: Create servers table 
+    mysql_db: state=import name=all target=build/conf/servers.sql 
+    tags:
+      - initdb
+
+  - name: Misc config
+    command: ./install.sh
+    tags:
+      - misc
+
+  - name: Update VCENTERHOST variable
+    replace: dest={{ item }} regexp=VCENTERHOST replace={{ VCENTERHOST }}
+    with_items:
+      - /var/www/html/ws/changeVMNetwork.php
+      - /var/www/html/ws/createvm.php
+    tags:
+      - var_update
+
+  - name: Update CLUSTER1 variable
+    replace: dest={{ item }} regexp=CLUSTER1 replace={{ CLUSTER1 }}
+    with_items:
+      - /var/www/html/ws/createvm.php 
+      - /var/www/html/createVM.html 
+    tags:
+      - var_update
+
+  - name: Update CLUSTER2 variable
+    replace: dest={{ item }} regexp=CLUSTER2 replace={{ CLUSTER2 }}
+    with_items:
+      - /var/www/html/ws/createvm.php 
+      - /var/www/html/createVM.html 
+    tags:
+      - var_update
+
+  - name: Update VMORCHESTRATORUSER variable
+    replace: dest={{ item }} regexp=VMORCHESTRATORUSER replace={{ VMORCHESTRATORUSER }}
+    with_items:
+      - /var/www/html/ws/changeVMNetwork.php 
+      - /var/www/html/ws/createvm.php 
+    tags:
+      - var_update
+
+  - name: Update VMORPASSWD variable
+    replace: dest={{ item }} regexp=VMORPASSWD replace={{ VMORPASSWD }}
+    with_items:
+      - /var/www/html/ws/changeVMNetwork.php 
+      - /var/www/html/ws/createvm.php 
+    tags:
+      - var_update
+
+  - name: Update ISODATASTORENAME variable
+    replace: dest={{ item }} regexp=ISODATASTORENAME replace={{ ISODATASTORENAME }}
+    with_items:
+      - /var/www/html/ws/createvm.php 
+    tags:
+      - var_update
+
+  - name: Update RHEL6KICKSTARTISO variable
+    replace: dest={{ item }} regexp=RHEL6KICKSTARTISO replace={{ RHEL6KICKSTARTISO }}
+    with_items:
+      - /var/www/html/ws/createvm.php 
+    tags:
+      - var_update
+
+  - name: Update RHEL7KICKSTARTISO variable
+    replace: dest={{ item }} regexp=RHEL7KICKSTARTISO replace={{ RHEL7KICKSTARTISO }}
+    with_items:
+      - /var/www/html/ws/createvm.php 
+    tags:
+      - var_update
+
+  - name: Update SERVER_BUILD_DHCP_NETWORK variable
+    replace: dest={{ item }} regexp=SERVER_BUILD_DHCP_NETWORK replace={{ SERVER_BUILD_DHCP_NETWORK }}
+    with_items:
+      - /var/www/html/ws/createvm.php 
+    tags:
+      - var_update
+
+  - name: Update VMWARE_FOLDER variable
+    replace: dest={{ item }} regexp=VMWARE_FOLDER replace={{ VMWARE_FOLDER }}
+    with_items:
+      - /var/www/html/ws/createvm.php 
+    tags:
+      - var_update
+
+  - name: Update VMWARE_DATA_CENTER_NAME variable
+    replace: dest={{ item }} regexp=VMWARE_DATA_CENTER_NAME replace={{ VMWARE_DATA_CENTER_NAME }}
+    with_items:
+      - /var/www/html/ws/createvm.php 
+    tags:
+      - var_update
+
+  - name: Update PRODDATASTORE variable
+    replace: dest={{ item }} regexp=PRODDATASTORE replace={{ PRODDATASTORE }}
+    with_items:
+      - /var/www/html/ws/createvm.php 
+    tags:
+      - var_update
+
+  - name: Update TESTDATASTORE variable
+    replace: dest={{ item }} regexp=TESTDATASTORE replace={{ TESTDATASTORE }}
+    with_items:
+      - /var/www/html/ws/createvm.php 
+    tags:
+      - var_update
+
+  - name: Update CONFIGDOMAIN variable
+    replace: dest={{ item }} regexp=CONFIGDOMAIN replace={{ CONFIGDOMAIN }}
+    with_items:
+      - /var/www/html/kickstart/networkConfig.sh
+      - /var/www/html/kickstart/ks.php
+      - /var/www/html/ws/inventory.php 
+    tags:
+      - var_update
+
+  - name: Update CONTAINERHOSTNAME variable
+    replace: dest={{ item }} regexp=CONTAINERHOSTNAME replace={{ CONTAINERHOSTNAME }}
+    with_items:
+      - /var/www/html/kickstart/ks.php
+      - /opt/hs/bin/inventory.py
+    tags:
+      - var_update
+
+  - name: Update CONFIGDNS1 variable
+    replace: dest={{ item }} regexp=CONFIGDNS1 replace={{ CONFIGDNS1 }}
+    with_items:
+      - /var/www/html/kickstart/networkConfig.sh 
+    tags:
+      - var_update
+
+  - name: Update CONFIGDNS2 variable
+    replace: dest={{ item }} regexp=CONFIGDNS2 replace={{ CONFIGDNS2 }}
+    with_items:
+      - /var/www/html/kickstart/networkConfig.sh 
+    tags:
+      - var_update
+
+  - name: Misc config
+    command: /bin/chcon -R -t httpd_sys_rw_content_t /var/www/html/ 
+    tags:
+      - selinux 
+
