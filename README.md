@@ -1,4 +1,4 @@
-# vmware-rhel-server-builder
+# vmware-ansible-rhel-server-builder
 
 Here are list of things you need to get this working with Docker
 
@@ -43,13 +43,26 @@ Here are list of things you need to get this working with on RHEL7
 
 1. Setup a Linux server running RHEL 7 
 2. Download this project
-3. Edit the variables install.yml file
+3. Edit the variables install\_rhel7.yml file
 4. Edit the networks.json file.  This file holds a mapping of your VMWare network and their Managed Object Reference (MoRef)
 5. Install Ansible - yum -y install ansible 
-6. Run the Ansible playbook - ansible-playbook install.yml 
+6. Run the Ansible playbook - ansible-playbook install\_rhel7.yml 
 7. Once the play has completed point your browser at http://your\_server/createVM.html
 8. Create VMs.
 
-The variables in the install.yml needs to be setup correctly for this work.
-Please reference the Docker section for more information about the variables.
+The variables in the install\_rhel7.yml needs to be setup correctly for this work.
+
+Here are list of things you need to get this working with on RHEL7
+
+1. Setup a Linux server running RHEL 6
+2. Download this project
+3. Edit the variables install\_rhel6.yml file
+4. Edit the networks.json file.  This file holds a mapping of your VMWare network and their Managed Object Reference (MoRef)
+5. Install Ansible - yum -y install ansible
+6. Run the Ansible playbook - ansible-playbook install\_rhel6.yml
+7. Once the play has completed point your browser at http://your\_server/createVM.html
+8. Create VMs.
+
+The variables in the install\_rhel6.yml needs to be setup correctly for this work.
+
 
